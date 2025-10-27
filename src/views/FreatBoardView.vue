@@ -416,9 +416,13 @@ import {SCALE_PRESETS} from '@/constants/scales.ts'
 
 const DEFAULT_TUNINGS = {
   'Guitar E Standard (6)': ['E2', 'A2', 'D3', 'G3', 'B3', 'E4'],
-  'Guitar D Standard (6)': ['D2', 'G2', 'C3', 'F3', 'A3', 'D4'],
-  'Guitar Drop D (6)': ['D2', 'A2', 'D3', 'G3', 'B3', 'E4'],
+//  'Guitar D Standard (6)': ['D2', 'G2', 'C3', 'F3', 'A3', 'D4'],
+//  'Guitar Drop D (6)': ['D2', 'A2', 'D3', 'G3', 'B3', 'E4'],
   'Bass E Standard (4)': ['E1', 'A1', 'D2', 'G2'],
+  'Bouzouki(4)':['G1','D2','A3','D3'],
+  'Octave Mandolin(4)':['G1', 'D2','A3','E3'],
+  'Mandola(4)':['C1', 'G2','D3','A3'],
+  'Mandolin(4)':['G1', 'D2','A3','E3'],
   'Ukulele C (4)': ['G4', 'C4', 'E4', 'A4']
 } as const
 

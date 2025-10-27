@@ -58,3 +58,38 @@ a,
     border-radius: theme(borderRadius.xl);
   }
 }
+
+
+/* ważne: usuń domyślny margines body i daj pełną wysokość */
+html, body, #app {
+  height: 100%;
+  width: 100%;
+ }
+body { margin: 0; }
+
+/* kontener layoutu */
+.layout {
+  display: grid;
+  grid-template-rows: auto 1fr;  /* header + reszta */
+  min-height: 100vh;             /* lub 100dvh dla mobilnych */
+  width: 100%;
+  align-content: start;           /* NIE centruj w pionie przy małej zawartości */
+  /* jeśli gdzieś globalnie masz place-content: center; to to nadpisuje */
+}
+
+/* wariant mobilny bardziej precyzyjny (opcjonalnie) */
+/* .layout { min-height: 100dvh; } */
+
+/* sticky header bez wpływu na centrowanie */
+.sticky {
+  position: sticky;
+  top: 0;
+  z-index: 1000;
+/*  background: #fff;*/
+/*  border-bottom: 1px solid #eee;*/
+}
+
+/* część na treść: pozwól jej się kurczyć w gridzie */
+.content {
+  min-height: 0;
+}

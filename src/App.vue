@@ -4,24 +4,48 @@ import HelloWorld from './components/HelloWorld.vue'
 </script>
 
 <template>
-  <header>
-    <img alt="Vue logo" class="logo" src="@/assets/logo.svg" width="125" height="125" />
+  <div class="layout">
+    <header class="site-header sticky">
+    <img alt="Freatboard logo" class="logo" src="./assets/logo.svg" width="125" height="125" />
 
     <div class="wrapper">
-      <HelloWorld msg="You did it!" />
-
+      <HelloWorld msg="Freatboard" />
       <nav>
         <RouterLink to="/">Home</RouterLink>
+        <RouterLink to="/freatboard">Freatboard</RouterLink>
         <RouterLink to="/about">About</RouterLink>
-        <RouterLink to="/freatboard">freatboard</RouterLink>
       </nav>
     </div>
-  </header>
+    </header>
 
-  <RouterView />
+    <main class="content">
+      <RouterView />
+    </main>
+  </div>
 </template>
 
 <style scoped>
+.layout {
+  min-height: 100vh;
+  display: grid;
+  grid-template-rows: auto 1fr;  /* header, potem reszta */
+}
+
+.sticky {
+  position: sticky;
+  top: 0;
+  z-index: 1000;
+/*  background: #fff;*/
+/*  border-bottom: 1px solid #eee;*/
+  /* opcjonalnie stała wysokość, ale nie jest wymagana */
+  /* height: 72px; display:flex; align-items:center; */
+}
+
+.content {
+  min-height: 0;  /* ważne przy grid/flex, żeby 1fr mógł się kurczyć */
+  /* padding: 1rem;  // jeżeli chcesz wewn. odstępy */
+}
+
 header {
   line-height: 1.5;
   max-height: 100vh;

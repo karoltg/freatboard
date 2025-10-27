@@ -1,0 +1,17 @@
+          <svg viewBox="0 0 240 240" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Minimalistyczna siatka gryfu na ciemnym tle">
+              <rect x="40" y="90" width="160" height="60" rx="14" fill="#E2E8F0"/>
+              <g stroke="#0B1220" stroke-opacity=".5">
+                  <line x1="70" y1="90" x2="70" y2="150"/>
+                  <line x1="100" y1="90" x2="100" y2="150"/>
+                  <line x1="130" y1="90" x2="130" y2="150"/>
+                  <line x1="160" y1="90" x2="160" y2="150"/>
+                  <line x1="190" y1="90" x2="190" y2="150"/>
+                  <line x1="40" y1="110" x2="200" y2="110"/>
+                  <line x1="40" y1="130" x2="200" y2="130"/>
+              </g>
+              <g>
+                  <circle cx="70" cy="110" r="6" fill="#41B883"/>
+                  <circle cx="130" cy="130" r="6" fill="#10B981"/>
+                  <circle cx="190" cy="110" r="6" fill="#22D3EE"/>
+              </g>
+          </svg>
