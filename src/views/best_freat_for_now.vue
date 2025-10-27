@@ -63,6 +63,12 @@
             <input type="checkbox" v-model="autoLabelNote" />
             Auto-label: note
           </label>
+          <!-- w grupie ustawień z innymi checkboxami -->
+          <label class="inline-flex items-center gap-2 text-sm">
+            <input type="checkbox" v-model="showGhostNotes" />
+            Show ghost notes
+          </label>
+
         </div>
         <div class="border-t pt-4 flex flex-wrap gap-2">
           <button class="px-3 py-2 rounded-xl bg-indigo-600 text-white hover:bg-indigo-700" @click="downloadSVG">Download SVG</button>
@@ -141,6 +147,43 @@
               </template>
             </template>
 
+            <!-- GHOST-NEW: półprzezroczyste nuty w każdym polu bez widocznego markera -->
+            <template v-if="showGhostNotes">
+              <g>
+                <!-- iteracja po strunach (logicznych: 0..stringCount-1) -->
+                <template v-for="s in stringCount" :key="`ghost-row-${s-1}`">
+                  <!-- f = 0..fretCount (włącznie z otwartą struną) -->
+                  <template v-for="f in fretCount + 1" :key="`ghost-${s-1}-${f-1}`">
+                    <template v-if="!visibleMarkerKeys.has(`${s-1}-${f-1}`)">
+                      <circle
+                        :cx="cxFor(s-1, f-1)"
+                        :cy="cyFor(s-1)"
+                        :r="ghostRadius"
+                        fill="#ffffff"
+                        :fill-opacity="0.6"
+                        stroke="#9ca3af"
+                        :stroke-opacity="0.7"
+                        stroke-width="1.5"
+                        stroke-dasharray="4 3"
+                      />
+                      <text
+                        :x="cxFor(s-1, f-1)"
+                        :y="cyFor(s-1) + 4"
+                        font-size="11"
+                        font-weight="600"
+                        text-anchor="middle"
+                        fill="#6b7280"
+                        fill-opacity="0.7"
+                      >
+                        {{ noteAt(s-1, f-1) }}
+                      </text>
+                    </template>
+                  </template>
+                </template>
+              </g>
+            </template>
+
+
             <!-- Markery -->
             <g v-for="m in markerList" :key="`mk-${m.s}-${m.f}`">
               <circle :cx="markerCx(m)" :cy="markerCy(m)" :r="m.r" :fill="m.fill" stroke="#000" :stroke-opacity="0.25" />
@@ -190,15 +233,37 @@
           @click="setPresetFill('#f59e0b')"
         />
       </div>
-      <label class="text-sm">Fill color
-        <input type="color" v-model="markerFill"
-               class="mt-1 w-full border rounded-xl px-3 py-2 h-10" />
+      <!--<label class="text-sm">Fill color-->
+      <!--  <input type="color" v-model="markerFill"-->
+      <!--         class="mt-1 w-full border rounded-xl px-3 py-2 h-10" />-->
+      <!--</label>-->
+
+      <!--<label class="text-sm">Text color-->
+      <!--  <input type="color" v-model="markerTextColor"-->
+      <!--         class="mt-1 w-full border rounded-xl px-3 py-2 h-10" />-->
+      <!--</label>-->
+      <label class="text-sm block">
+        Fill color
+        <input
+          type="color"
+          v-model="markerFill"
+          class="mt-1 h-10 w-full cursor-pointer rounded-xl ring-1 ring-black border-0 shadow-ms p-0
+                 appearance-none focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500
+                 color-input"
+        />
       </label>
 
-      <label class="text-sm">Text color
-        <input type="color" v-model="markerTextColor"
-               class="mt-1 w-full border rounded-xl px-3 py-2 h-10" />
+      <label class="text-sm block border-black">
+        Text color
+        <input
+          type="color"
+          v-model="markerTextColor"
+          class="mt-1 h-10 w-full cursor-pointer rounded-xl ring-1 ring-black border-0 shadow-ms p-0
+                 appearance-none focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500
+                 color-input"
+        />
       </label>
+
     </div>
     <label class="text-sm">Radius (px)
       <input type="number" min="6" max="24" v-model.number="markerRadius"
@@ -209,18 +274,13 @@
       <button class="px-3 py-2 rounded-xl bg-gray-100 hover:bg-gray-200"
               @click="resetMarkers">Clean markers</button>
     </div>
-    <!-- Select color (presety) przeniesione pod Marker — tool -->
-    <div class="pt-2">
-      <label class="block text-sm font-medium mb-2">Select color (presets)</label>
-
-    </div>
   </div>
 
   <!-- Kolumna 2: placeholder -->
   <div class="border-t space-y-2">
     <!-- Kolumna 2: Akordy / zaznaczanie stopni -->
     <div class="border-t pt-4 space-y-4">
-      <h3 class="font-semibold">Grid 2 — Chord highlight</h3>
+      <h3 class="font-semibold">Chord highlight</h3>
 
       <div class="grid grid-cols-2 gap-3">
         <label class="text-sm col-span-2">Chord preset
@@ -232,18 +292,28 @@
           </select>
         </label>
 
-        <!-- Legenda stopni (dynamiczna) -->
+        <!-- Legenda stopni (klik = toggle stopnia akordu) -->
         <div class="col-span-2 flex flex-wrap items-center gap-2">
           <template v-for="item in chordLegend" :key="item.deg">
-            <span
-              class="inline-flex items-center gap-2 text-xs px-2 py-1 rounded-full border"
-              :style="{ backgroundColor: item.color, color: getTextColorForBg(item.color) }"
+            <button
+              type="button"
+              @click="toggleChordDegree(item.deg)"
+              class="inline-flex items-center gap-2 text-xs px-2 py-1 rounded-full border transition
+                     focus:outline-none focus:ring"
+              :style="{
+                backgroundColor: item.color,
+                color: getTextColorForBg(item.color),
+                filter: isChordDegreeHidden(item.deg) ? 'grayscale(1)' : 'none',
+                opacity: isChordDegreeHidden(item.deg) ? 0.45 : 1
+              }"
+              :title="isChordDegreeHidden(item.deg) ? 'Pokazuj ten stopień' : 'Ukryj ten stopień'"
             >
               <span class="font-semibold">{{ item.deg }}</span>
               <span class="opacity-90">— {{ item.notes.join(' / ') }}</span>
-            </span>
+            </button>
           </template>
         </div>
+
 
 
         <div class="col-span-2 flex gap-2">
@@ -254,7 +324,7 @@
         </div>
 
         <p class="col-span-2 text-xs text-gray-500">
-          Podświetla wszystkie dźwięki wybranego akordu na całym gryfie. Ręczne markery nie są nadpisywane.
+          Highlights all notes of the selected chord across the entire fretboard. Manual markers are not overwritten.
         </p>
       </div>
     </div>
@@ -262,10 +332,73 @@
   </div>
 
   <!-- Kolumna 3: placeholder -->
-  <div class="border-t pt-4 space-y-2">
-    <h3 class="font-semibold">Grid 3</h3>
-    <!-- Twoje kontrolki tutaj -->
-    <div class="text-sm text-gray-500">Miejsce na dodatkowe ustawienia…</div>
+  <div class="border-t  space-y-2">
+    <!-- Kolumna 3: Scale highlight -->
+    <div class="border-t pt-4 space-y-4">
+      <h3 class="font-semibold">Scale highlight</h3>
+
+      <div class="grid grid-cols-2 gap-3">
+        <!-- NEW: wybór skali -->
+        <label class="text-sm col-span-2">Scale preset
+          <select v-model="selectedScaleKey"
+                  class="mt-1 w-full border rounded-xl px-3 py-2">
+            <option v-for="(v, k) in SCALE_PRESETS" :key="k" :value="k as any">
+              {{ k }}
+            </option>
+          </select>
+        </label>
+
+        <!-- NEW: wybór toniki -->
+        <label class="text-sm">Root (tonika)
+          <select v-model="selectedScaleRoot"
+                  class="mt-1 w-full border rounded-xl px-3 py-2">
+            <option v-for="n in NOTE_NAMES" :key="n" :value="n">{{ n }}</option>
+          </select>
+        </label>
+
+        <!-- NEW: tryb etykiet -->
+        <label class="inline-flex items-center gap-2 text-sm">
+          <input type="checkbox" v-model="scaleLabelDegree" />
+          Label: degree instead of note
+        </label>
+
+        <!-- LEGENDA SKALI (klik = toggle stopnia) -->
+        <div class="col-span-2 flex flex-wrap items-center gap-2">
+          <template v-for="item in scaleLegend" :key="item.deg">
+            <button
+              type="button"
+              @click="toggleScaleDegree(item.deg)"
+
+              class="inline-flex items-center gap-2 text-xs px-2 py-1 rounded-full border transition
+                     focus:outline-none focus:ring"
+              :style="{
+                backgroundColor: item.color,
+                color: getTextColorForBg(item.color),
+                // wizualny stan 'wyciszony'
+                filter: isScaleDegreeHidden(item.deg) ? 'grayscale(1)' : 'none',
+                opacity: isScaleDegreeHidden(item.deg) ? 0.45 : 1
+              }"
+              :title="isScaleDegreeHidden(item.deg) ? 'Pokazuj ten stopień' : 'Ukryj ten stopień'"
+            >
+              <span class="font-semibold">{{ item.deg }}</span>
+              <span class="opacity-90">— {{ item.notes.join(' / ') }}</span>
+            </button>
+          </template>
+        </div>
+
+        <div class="col-span-2 flex gap-2">
+          <button class="px-3 py-2 rounded-xl bg-gray-100 hover:bg-gray-200"
+                  @click="addScaleMarkers">Highlight scale</button>
+          <button class="px-3 py-2 rounded-xl bg-gray-100 hover:bg-gray-200"
+                  @click="clearScaleMarkers">Clear scale</button>
+        </div>
+
+        <p class="col-span-2 text-xs text-gray-500">
+          Highlights all notes of the selected scale across the entire fretboard. Manual and chord markers are preserved.
+        </p>
+      </div>
+    </div>
+
   </div>
 </div>
 
@@ -277,14 +410,19 @@
 
 <script setup lang="ts">
 import { ref, reactive, computed, watch } from 'vue'
-import UiButton from '../components/UiButton.vue'
-
+//import UiButton from '../components/UiButton.vue'
+import { CHORD_PRESETS } from '../constants/chord-presets.ts';
+import {SCALE_PRESETS} from '@/constants/scales.ts'
 
 const DEFAULT_TUNINGS = {
   'Guitar E Standard (6)': ['E2', 'A2', 'D3', 'G3', 'B3', 'E4'],
-  'Guitar D Standard (6)': ['D2', 'G2', 'C3', 'F3', 'A3', 'D4'],
-  'Guitar Drop D (6)': ['D2', 'A2', 'D3', 'G3', 'B3', 'E4'],
+//  'Guitar D Standard (6)': ['D2', 'G2', 'C3', 'F3', 'A3', 'D4'],
+//  'Guitar Drop D (6)': ['D2', 'A2', 'D3', 'G3', 'B3', 'E4'],
   'Bass E Standard (4)': ['E1', 'A1', 'D2', 'G2'],
+  'Bouzouki(4)':['G1','D2','A3','D3'],
+  'Octave Mandolin(4)':['G1', 'D2','A3','E3'],
+  'Mandola(4)':['C1', 'G2','D3','A3'],
+  'Mandolin(4)':['G1', 'D2','A3','E3'],
   'Ukulele C (4)': ['G4', 'C4', 'E4', 'A4']
 } as const
 
@@ -299,7 +437,8 @@ type Marker = {
   fill: string
   textColor: string
   r: number
-  kind?: 'manual' | 'chord' // znacznik, czy ręcznie czy akord jest dodawany
+  kind?: 'manual' | 'chord' | 'scale' // znacznik, czy ręcznie czy akord jest dodawany albo skala
+  degree?: string
 }
 
 function yForString(s: number) {
@@ -424,11 +563,21 @@ function handleBoardClick(evt: MouseEvent) {
     if (f > fretCount.value) f = fretCount.value
   }
 
-  let s = Math.round(yr / cellH)
-  if (s < 0) s = 0
-  if (s > stringCount.value - 1) s = stringCount.value - 1
+//  let s = Math.round(yr / cellH)
+//  if (s < 0) s = 0
+//  if (s > stringCount.value - 1) s = stringCount.value - 1
+//
+//  const logicalS = lefty.value ? stringCount.value - 1 - s : s
+//  const logicalF = f === 0 ? 0 : (lefty.value ? (fretCount.value - f + 1) : f)
 
-  const logicalS = lefty.value ? stringCount.value - 1 - s : s
+  let sVis = Math.round(yr / cellH)
+  if (sVis < 0) sVis = 0
+  if (sVis > stringCount.value - 1) sVis = stringCount.value - 1
+
+  // ⬇️ najważniejsze: odwracamy oś Y dla logiki
+  const logicalS = stringCount.value - 1 - sVis
+
+  // progi w leworęczności mogą pozostawać odbijane poziomo:
   const logicalF = f === 0 ? 0 : (lefty.value ? (fretCount.value - f + 1) : f)
 
   toggleMarker(logicalS, logicalF)
@@ -489,7 +638,19 @@ function resetMarkers() {
   for (const k of Object.keys(markers)) delete markers[k]
 }
 
-const markerList = computed<Marker[]>(() => Object.values(markers))
+//podmieniam do testów
+//const markerList = computed<Marker[]>(() => Object.values(markers))
+
+const markerList = computed<Marker[]>(() => {
+  const hiddenScale = scaleHiddenDegrees.value
+  const hiddenChord = chordHiddenDegrees.value
+  return Object.values(markers).filter(m => {
+    if (m.kind === 'scale' && m.degree && hiddenScale.has(m.degree)) return false
+    if (m.kind === 'chord' && m.degree && hiddenChord.has(m.degree)) return false
+    return true
+  })
+})
+
 
 function markerCx(m: Marker) {
   if (m.f === 0) {
@@ -507,24 +668,38 @@ function markerCy(m: Marker) {
 return yForString(m.s)
 }
 
-// Prosty kontrast: dobierz kolor tekstu (biały/czarny) do tła markera
-function getTextColorForBg(hex: string) {
+function getTextColorForBg(hex: string): string {
   // akceptujemy #rgb lub #rrggbb
-  const c = hex.replace('#','')
-  const r = c.length === 3 ? parseInt(c[0]+c[0], 16) : parseInt(c.slice(0,2), 16)
-  const g = c.length === 3 ? parseInt(c[1]+c[1], 16) : parseInt(c.slice(2,4), 16)
-  const b = c.length === 3 ? parseInt(c[2]+c[2], 16) : parseInt(c.slice(4,6), 16)
-  // luminancja względna (upraszczamy do luma sRGB)
-  const luma = 0.2126*r + 0.7152*g + 0.0722*b
-  return luma > 140 ? '#111827' /* ciemny */ : '#ffffff' /* jasny */
+  const c = hex.replace(/^#/, '').toLowerCase();
+
+  // walidacja
+  if (!/^(?:[0-9a-f]{3}|[0-9a-f]{6})$/.test(c)) {
+    // fallback: ciemny tekst na wypadek złego koloru
+    return '#111827';
+  }
+
+  let r: number, g: number, b: number;
+
+  if (c.length === 3) {
+    r = parseInt(c.charAt(0).repeat(2), 16);
+    g = parseInt(c.charAt(1).repeat(2), 16);
+    b = parseInt(c.charAt(2).repeat(2), 16);
+  } else {
+    r = parseInt(c.slice(0, 2), 16);
+    g = parseInt(c.slice(2, 4), 16);
+    b = parseInt(c.slice(4, 6), 16);
+  }
+
+  const luma = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+  return luma > 140 ? '#111827' : '#ffffff';
 }
+
 
 function setPresetFill(color: string) {
   markerFill.value = color
   // Jeśli użytkownik nie nadpisuje ręcznie, ustaw czytelny tekst:
   markerTextColor.value = getTextColorForBg(color)
 }
-
 
 // Kolory stopni akordu (R = pryma)
 const DEGREE_COLORS: Record<string, string> = {
@@ -538,44 +713,9 @@ const DEGREE_COLORS: Record<string, string> = {
   '#9': '#06b6d4',     // #9
 }
 
-
-// Presety akordów (na start C dur i Cmaj7)
-const CHORD_PRESETS = {
-  // już miałeś:
-  'C major (C E G)': {
-    degrees: { C: '1', E: '3', G: '5' }
-  },
-  'Cmaj7 (C E G B)': {
-    degrees: { C: '1', E: '3', G: '5', B: '7' }
-  },
-
-  // NOWE: z 9
-  'Cadd9 (C E G D)': {
-    degrees: { C: '1', E: '3', G: '5', D: '9' }
-  },
-  'C9 (C E G Bb D)': {
-    // Bb -> A#
-    degrees: { C: '1', E: '3', G: '5', 'A#': 'b7', D: '9' }
-  },
-  'Cmaj9 (C E G B D)': {
-    degrees: { C: '1', E: '3', G: '5', B: '7', D: '9' }
-  },
-
-  // Opcjonalnie alteracje 9:
-  'C7(b9) (C E G Bb Db)': {
-    // Db -> C#
-    degrees: { C: '1', E: '3', G: '5', 'A#': 'b7', 'C#': 'b9' }
-  },
-  'C7(#9) (C E G Bb D#)': {
-    degrees: { C: '1', E: '3', G: '5', 'A#': 'b7', 'D#': '#9' }
-  },
-} as const
-
-
 type ChordKey = keyof typeof CHORD_PRESETS
 
 const selectedChord = ref<ChordKey>('C major (C E G)')
-
 
 function clearChordMarkers() {
   for (const k of Object.keys(markers)) {
@@ -584,6 +724,7 @@ function clearChordMarkers() {
 }
 
 function addChordMarkers() {
+  chordHiddenDegrees.value = new Set()
   const preset = CHORD_PRESETS[selectedChord.value]
   if (!preset) return
   clearChordMarkers()
@@ -591,6 +732,7 @@ function addChordMarkers() {
   for (let s = 0; s < stringCount.value; s++) {
     for (let f = 0; f <= fretCount.value; f++) {
       const n = noteAt(s, f) // np. 'C', 'C#', ...
+      if (!n) continue;
       const deg = (preset.degrees as Record<string, string>)[n]
       if (!deg) continue
 
@@ -605,7 +747,8 @@ function addChordMarkers() {
         fill,
         textColor: getTextColorForBg(fill),
         r: markerRadius.value,
-        kind: 'chord'
+        kind: 'chord',
+        degree: deg
       }
     }
   }
@@ -641,8 +784,175 @@ const chordLegend = computed(() => {
   items.sort((a, b) => degreeRank(a.deg) - degreeRank(b.deg))
   return items
 })
+type ScaleStep = Readonly<{ semis: number; deg: string }>;
+// NEW: typ dla wzorca skali (półtony + etykieta stopnia)
+type ScalePattern = ReadonlyArray<ScaleStep>;
 
+Object.assign(DEGREE_COLORS, {
+  '2':  '#22c55e',
+  'b2': '#16a34a',
+  '4':  '#06b6d4',
+  '#4': '#0ea5e9',
+  'b5': '#0891b2',
+  '#5': '#3b82f6',
+  '6':  '#84cc16',
+  'b6': '#65a30d',
+  'bb7':'#ea580c',
+  '11': '#0ea5e9',
+  '#11':'#38bdf8',
+  '13': '#a3e635',
+  'b13':'#65a30d',
+})
 
+// --- STATE dla Grid 3 ---
+type ScaleKey = keyof typeof SCALE_PRESETS
+const selectedScaleKey = ref<ScaleKey>('Major (ionian)')        // NEW
+const selectedScaleRoot = ref<string>('C')                       // NEW
+const scaleLabelDegree = ref<boolean>(false)                     // NEW
+
+// --- HELPERY skali ---
+function noteIndexOfName(n: string) {                            // NEW
+  return NOTE_NAMES.indexOf(n) // zakładamy krzyżyki (#), bez bemoli
+}
+
+// NEW: buduje mapę { nuta: 'stopień' } dla podanej skali i toniki
+function buildScaleDegrees(root: string, pattern: ScalePattern): Record<string, string> {
+  const rootIdx = noteIndexOfName(root)
+  if (rootIdx < 0) return {}
+  const map: Record<string, string> = {}
+  for (const step of pattern) {
+    const noteIdx = (rootIdx + step.semis) % 12
+    const note = NOTE_NAMES[noteIdx]
+    if (!note) continue;
+    map[note] = step.deg
+  }
+  return map
+}
+
+// --- CLEAR / ADD dla skali ---
+function clearScaleMarkers() {                                   // NEW
+  for (const k of Object.keys(markers)) {
+    if (markers[k]?.kind === 'scale') delete markers[k]
+  }
+}
+
+function addScaleMarkers() {
+  scaleHiddenDegrees.value = new Set()                                     // NEW
+  const pat = SCALE_PRESETS[selectedScaleKey.value]
+  if (!pat) return
+  const degMap = buildScaleDegrees(selectedScaleRoot.value, pat)
+  clearScaleMarkers()
+
+  for (let s = 0; s < stringCount.value; s++) {
+    for (let f = 0; f <= fretCount.value; f++) {
+      const n = noteAt(s, f)
+      if (!n) continue;
+      const deg = (degMap as Record<string,string>)[n]
+      if (!deg) continue
+
+      const fill = DEGREE_COLORS[deg] || '#111827'
+      const key = `${s}-${f}`
+
+      // zachowujemy ręczne i akordowe markery
+      if (markers[key]?.kind === 'manual' || markers[key]?.kind === 'chord') continue
+
+      markers[key] = {
+        s, f,
+        label: scaleLabelDegree.value ? deg : n,
+        fill,
+        textColor: getTextColorForBg(fill),
+        r: markerRadius.value,
+        kind: 'scale',
+        degree: deg
+      }
+    }
+  }
+}
+
+// --- LEGENDA skali (podobna do chordLegend) ---
+const scaleLegend = computed(() => {                             // NEW
+  const pat = SCALE_PRESETS[selectedScaleKey.value]
+  if (!pat) return []
+  const degMap = buildScaleDegrees(selectedScaleRoot.value, pat)
+
+  // odwrócona mapa: stopień -> nuty
+  const byDegree: Record<string, string[]> = {}
+  for (const [note, deg] of Object.entries(degMap)) {
+    if (!byDegree[deg]) byDegree[deg] = []
+    byDegree[deg].push(note)
+  }
+
+  const items = Object.entries(byDegree).map(([deg, notes]) => ({
+    deg,
+    notes,
+    color: DEGREE_COLORS[deg] || '#111827',
+  }))
+  items.sort((a, b) => degreeRank(a.deg) - degreeRank(b.deg))
+  return items
+})
+
+// NEW: Set ukrytych stopni skali (działa tylko dla markerów kind==='scale')
+const scaleHiddenDegrees = ref<Set<string>>(new Set())
+
+// NEW: przełącz ukrycie danego stopnia
+function toggleScaleDegree(deg: string) {
+  const set = new Set(scaleHiddenDegrees.value)
+  if (set.has(deg)) set.delete(deg); else set.add(deg)
+  scaleHiddenDegrees.value = set
+}
+
+// NEW: czy stopień jest ukryty?
+function isScaleDegreeHidden(deg: string) {
+  return scaleHiddenDegrees.value.has(deg)
+}
+
+// (opcjonalnie) resetuj ukrycia, gdy zmienia się skala lub tonika
+watch([selectedScaleKey, selectedScaleRoot], () => {
+  scaleHiddenDegrees.value = new Set()
+})
+
+// CHORD-NEW: Set ukrytych stopni akordu (działa dla markerów kind==='chord')
+const chordHiddenDegrees = ref<Set<string>>(new Set())
+
+// CHORD-NEW: przełącz ukrycie danego stopnia akordu
+function toggleChordDegree(deg: string) {
+  const set = new Set(chordHiddenDegrees.value)
+  if (set.has(deg)) set.delete(deg); else set.add(deg)
+  chordHiddenDegrees.value = set
+}
+
+// CHORD-NEW: czy stopień akordu jest ukryty?
+function isChordDegreeHidden(deg: string) {
+  return chordHiddenDegrees.value.has(deg)
+}
+
+// CHORD-NEW: reset ukryć przy zmianie presetu akordu
+watch(selectedChord, () => {
+  chordHiddenDegrees.value = new Set()
+})
+
+// GHOST-NEW: przełącznik widoczności „ghost notes”
+const showGhostNotes = ref(true)
+
+// GHOST-NEW: szybkie sprawdzanie, czy dany marker jest aktualnie WIDOCZNY (po filtrach legend)
+const visibleMarkerKeys = computed(() => {
+  const set = new Set<string>()
+  for (const m of markerList.value) set.add(`${m.s}-${m.f}`)
+  return set
+})
+
+// GHOST-NEW: pozycjonowanie „duchów” bez tworzenia sztucznego markera
+function cxFor(s: number, f: number) {
+  if (f === 0) return boardPad.x + zeroW / 2
+  const fDraw = lefty.value ? (fretCount.value - f + 1) : f
+  return boardPad.x + zeroW + nutW + (fDraw - 0.5) * cellW
+}
+function cyFor(s: number) {
+  return yForString(s)
+}
+
+// (opcjonalnie) promień duchów nieco mniejszy od normalnych markerów
+const ghostRadius = computed(() => Math.max(8, Math.min(12, markerRadius.value - 2)))
 
 </script>
 

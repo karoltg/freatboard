@@ -1,5 +1,5 @@
 // NEW: presety skal (durowa, molowa, pentatoniki + parę modalnych)
-export const SCALE_PRESETS: Record<string, ScalePattern> = {
+export const SCALE_PRESETS = {
   'Major (ionian)': [
     { semis: 0,  deg: '1' },
     { semis: 2,  deg: '2' },

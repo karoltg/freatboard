@@ -668,24 +668,38 @@ function markerCy(m: Marker) {
 return yForString(m.s)
 }
 
-// Prosty kontrast: dobierz kolor tekstu (biały/czarny) do tła markera
-function getTextColorForBg(hex: string) {
+function getTextColorForBg(hex: string): string {
   // akceptujemy #rgb lub #rrggbb
-  const c = hex.replace('#','')
-  const r = c.length === 3 ? parseInt(c[0]+c[0], 16) : parseInt(c.slice(0,2), 16)
-  const g = c.length === 3 ? parseInt(c[1]+c[1], 16) : parseInt(c.slice(2,4), 16)
-  const b = c.length === 3 ? parseInt(c[2]+c[2], 16) : parseInt(c.slice(4,6), 16)
-  // luminancja względna (upraszczamy do luma sRGB)
-  const luma = 0.2126*r + 0.7152*g + 0.0722*b
-  return luma > 140 ? '#111827' /* ciemny */ : '#ffffff' /* jasny */
+  const c = hex.replace(/^#/, '').toLowerCase();
+
+  // walidacja
+  if (!/^(?:[0-9a-f]{3}|[0-9a-f]{6})$/.test(c)) {
+    // fallback: ciemny tekst na wypadek złego koloru
+    return '#111827';
+  }
+
+  let r: number, g: number, b: number;
+
+  if (c.length === 3) {
+    r = parseInt(c.charAt(0).repeat(2), 16);
+    g = parseInt(c.charAt(1).repeat(2), 16);
+    b = parseInt(c.charAt(2).repeat(2), 16);
+  } else {
+    r = parseInt(c.slice(0, 2), 16);
+    g = parseInt(c.slice(2, 4), 16);
+    b = parseInt(c.slice(4, 6), 16);
+  }
+
+  const luma = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+  return luma > 140 ? '#111827' : '#ffffff';
 }
+
 
 function setPresetFill(color: string) {
   markerFill.value = color
   // Jeśli użytkownik nie nadpisuje ręcznie, ustaw czytelny tekst:
   markerTextColor.value = getTextColorForBg(color)
 }
-
 
 // Kolory stopni akordu (R = pryma)
 const DEGREE_COLORS: Record<string, string> = {
@@ -699,46 +713,9 @@ const DEGREE_COLORS: Record<string, string> = {
   '#9': '#06b6d4',     // #9
 }
 
-
-// Presety akordów (na start C dur i Cmaj7)
-//const CHORD_PRESETS = {
-//  // już miałeś:
-//  'C major (C E G)': {
-//    degrees: { C: '1', E: '3', G: '5' }
-//  },
-//  'Cmaj7 (C E G B)': {
-//    degrees: { C: '1', E: '3', G: '5', B: '7' }
-//  },
-//
-//  // NOWE: z 9
-//  'Cadd9 (C E G D)': {
-//    degrees: { C: '1', E: '3', G: '5', D: '9' }
-//  },
-//  'C9 (C E G Bb D)': {
-//    // Bb -> A#
-//    degrees: { C: '1', E: '3', G: '5', 'A#': 'b7', D: '9' }
-//  },
-//  'Cmaj9 (C E G B D)': {
-//    degrees: { C: '1', E: '3', G: '5', B: '7', D: '9' }
-//  },
-//
-//  // Opcjonalnie alteracje 9:
-//  'C7(b9) (C E G Bb Db)': {
-//    // Db -> C#
-//    degrees: { C: '1', E: '3', G: '5', 'A#': 'b7', 'C#': 'b9' }
-//  },
-//  'C7(#9) (C E G Bb D#)': {
-//    degrees: { C: '1', E: '3', G: '5', 'A#': 'b7', 'D#': '#9' }
-//  },
-//} as const
-
-
-
-
 type ChordKey = keyof typeof CHORD_PRESETS
 
 const selectedChord = ref<ChordKey>('C major (C E G)')
-
 
 function clearChordMarkers() {
   for (const k of Object.keys(markers)) {
@@ -755,6 +732,7 @@ function addChordMarkers() {
   for (let s = 0; s < stringCount.value; s++) {
     for (let f = 0; f <= fretCount.value; f++) {
       const n = noteAt(s, f) // np. 'C', 'C#', ...
+      if (!n) continue;
       const deg = (preset.degrees as Record<string, string>)[n]
       if (!deg) continue
 
@@ -806,9 +784,9 @@ const chordLegend = computed(() => {
   items.sort((a, b) => degreeRank(a.deg) - degreeRank(b.deg))
   return items
 })
-
+type ScaleStep = Readonly<{ semis: number; deg: string }>;
 // NEW: typ dla wzorca skali (półtony + etykieta stopnia)
-type ScalePattern = Array<{ semis: number; deg: string }>
+type ScalePattern = ReadonlyArray<ScaleStep>;
 
 Object.assign(DEGREE_COLORS, {
   '2':  '#22c55e',
@@ -845,6 +823,7 @@ function buildScaleDegrees(root: string, pattern: ScalePattern): Record<string, 
   for (const step of pattern) {
     const noteIdx = (rootIdx + step.semis) % 12
     const note = NOTE_NAMES[noteIdx]
+    if (!note) continue;
     map[note] = step.deg
   }
   return map
@@ -867,6 +846,7 @@ function addScaleMarkers() {
   for (let s = 0; s < stringCount.value; s++) {
     for (let f = 0; f <= fretCount.value; f++) {
       const n = noteAt(s, f)
+      if (!n) continue;
       const deg = (degMap as Record<string,string>)[n]
       if (!deg) continue
 
